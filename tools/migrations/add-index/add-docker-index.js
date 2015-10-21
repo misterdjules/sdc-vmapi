@@ -5,13 +5,13 @@
  */
 
 /*
- * Copyright (c) 2014, Joyent, Inc.
+ * Copyright (c) 2016, Joyent, Inc.
  */
 
 var bunyan = require('bunyan');
 
-var configLoader = require('../../lib/config-loader');
-var MORAY = require('../../lib/apis/moray.js');
+var configLoader = require('../../../lib/config-loader');
+var MORAY = require('../../../lib/apis/moray.js');
 
 var config = configLoader.loadConfig();
 console.log(config);
@@ -38,3 +38,4 @@ moray.once('moray-ready', function onConnectedToMoray() {
         log.info('"docker" index has been successfully added');
     });
 });
+

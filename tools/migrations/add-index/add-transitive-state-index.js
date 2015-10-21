@@ -5,19 +5,21 @@
  */
 
 /*
- * Copyright (c) 2014, Joyent, Inc.
+ * Copyright (c) 2016, Joyent, Inc.
  */
 
 var bunyan = require('bunyan');
 
-var configLoader = require('../../lib/config-loader');
-var MORAY = require('../../lib/apis/moray.js');
+var configLoader = require('../../../lib/config-loader');
+var MORAY = require('../../../lib/apis/moray.js');
+
+var log;
 
 var config = configLoader.loadConfig();
 console.log(config);
 
-var log = new bunyan({
-    name: 'add-docker-index',
+log = new bunyan({
+    name: 'add-transitive-state-index',
     level: config.logLevel || 'debug',
     serializers: bunyan.stdSerializers
 });
@@ -26,7 +28,7 @@ var moray = new MORAY(config.moray);
 moray.connect();
 
 moray.once('moray-ready', function onConnectedToMoray() {
-    moray.addVmIndex({name: 'docker', type: 'string'}, function (err) {
+    moray.addVmIndex({name: 'transitive_state', type: 'string'}, function (err) {
         moray.connection.close();
 
         if (err) {
@@ -35,6 +37,6 @@ moray.once('moray-ready', function onConnectedToMoray() {
             return;
         }
 
-        log.info('"docker" index has been successfully added');
+        log.info('"transitive_state" index has been successfully added');
     });
 });

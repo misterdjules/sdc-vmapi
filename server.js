@@ -12,7 +12,6 @@
  * Main entry-point for the VMs API.
  */
 
-var path = require('path');
 var fs = require('fs');
 
 var VMAPI = require('./lib/vmapi');
@@ -36,8 +35,7 @@ function version() {
     return VERSION;
 }
 
-var configFilePath = path.join(__dirname, 'config.json');
-var config = configLoader.loadConfig(configFilePath);
+var config = configLoader.loadConfig();
 config.version = version() || '7.0.0';
 
 
