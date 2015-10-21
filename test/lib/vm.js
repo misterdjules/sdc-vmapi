@@ -1,5 +1,5 @@
-var assert = require('assert-plus');
 
+var assert = require('assert-plus');
 var libuuid = require('libuuid');
 
 var common = require('../../lib/common');
