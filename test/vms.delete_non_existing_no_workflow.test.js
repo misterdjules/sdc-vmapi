@@ -13,11 +13,14 @@
 // the request results in an error right away.
 
 var assert = require('assert-plus');
+var jsprim = require('jsprim');
 var libuuid = require('libuuid');
+var Logger = require('bunyan');
+var restify = require('restify');
 
+var changefeedUtils = require('../lib/changefeed');
 var common = require('./common');
-var moray = require('../lib/apis/moray');
-var morayTest = require('./lib/moray');
+var morayInit = require('../lib/moray/moray-init');
 var vmTest = require('./lib/vm');
 
 var client;
@@ -73,14 +76,32 @@ exports.delete_vm_with_null_server_uuid = function (t) {
 };
 
 exports.cleanup_test_vms = function (t) {
-    var morayClient = morayTest.createMorayClient();
-    morayClient.connect();
+    morayInit.startMorayInit({
+        morayConfig: common.config.moray,
+        maxBucketsSetupAttempts: 1,
+        maxBucketsReindexAttempts: 1,
+        changefeedPublisher: changefeedUtils.createNoopCfPublisher()
+    }, function onMorayStorageInitStarted(morayStorageSetup) {
+            var morayBucketsInitializer;
+            var morayClient;
+            var moray;
 
-    morayClient.once('moray-ready', function () {
-        vmTest.deleteTestVMs(morayClient, {}, function testVmDeleted(err) {
-            morayClient.connection.close();
-            t.ifError(err, 'Deleting the test VM should not error');
-            t.done();
+            t.ok(morayStorageSetup,
+                'moray storage setup should start successfully');
+
+            morayBucketsInitializer = morayStorageSetup.morayBucketsInitializer;
+            morayClient = morayStorageSetup.morayClient;
+            moray = morayStorageSetup.moray;
+
+            morayBucketsInitializer.on('done', function onMorayStorageReady() {
+                vmTest.deleteTestVMs(moray, {},
+                    function testVmDeleted(deleteVmsErr) {
+                        morayClient.close();
+
+                        t.ok(!deleteVmsErr,
+                            'Deleting test VMs should not error');
+                        t.done();
+                    });
+            });
         });
-    });
 };
