@@ -19,7 +19,7 @@ var util = require('util');
 var vasync = require('vasync');
 
 var configLoader = require('../lib/config-loader');
-var MORAY = require('../lib/apis/moray');
+var morayInit = require('../lib/moray/moray-init');
 
 var changefeedPublisher;
 
@@ -42,6 +42,7 @@ var log = new bunyan({
 });
 
 var moray;
+var morayClient;
 
 vasync.pipeline({funcs: [
     function initChangefeedPublisher(ctx, next) {
@@ -55,13 +56,29 @@ vasync.pipeline({funcs: [
         changefeedPublisher.on('moray-ready', next);
     },
     function initMoray(ctx, next) {
-        var morayConfig = jsprim.deepCopy(config.moray);
-        morayConfig.changefeedPublisher = changefeedPublisher;
+        morayInit.startMorayInit({
+            morayConfig: config.moray,
+            changefeedPublisher: changefeedPublisher,
+            maxBucketsReindexAttempts: 1,
+            maxBucketsSetupAttempts: 1,
+            log: log.child({ component: 'moray-init' }, true)
+        }, function onMorayInitStarted(storageSetup) {
+            var morayBucketsInitializer = storageSetup.morayBucketsInitializer;
+            moray = storageSetup.moray;
+            morayClient = storageSetup.morayClient;
 
-        moray = new MORAY(morayConfig);
+            morayBucketsInitializer.on('error',
+                function onMorayBucketsSetup(morayBucketsSetupErr) {
+                    morayClient.close();
+                    next(morayBucketsSetupErr);
+                });
 
-        moray.connect();
-        moray.once('moray-ready', next);
+            morayBucketsInitializer.on('buckets-setup-done',
+                function onMorayBucketsSetupDone() {
+                    next();
+                });
+        });
+
     }
 ]}, function onInitDone(initErr) {
     processVms(0, VMS_LIMIT, processCb);
@@ -178,7 +195,7 @@ function processCb(err) {
     } else {
         log.info('%d VMS nbProcessedVms. DONE!', totalNbKvmVms);
         changefeedPublisher.stop();
-        moray.connection.close();
+        morayClient.close();
         return (true);
     }
 }
