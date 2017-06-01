@@ -9,7 +9,7 @@
  */
 
 var assert = require('assert-plus');
-
+var jsprim = require('jsprim');
 var libuuid = require('libuuid');
 
 var common = require('../../lib/common');
@@ -119,21 +119,25 @@ exports.deleteTestVMs = function deleteTestVMs(moray, params, callback) {
     assert.object(params, 'params');
     assert.func(callback, 'callback');
 
-    if (params.alias)
-        params.alias = TEST_VMS_ALIAS + params.alias;
-    else
-        params.alias = TEST_VMS_ALIAS;
-
     // Even though we don't want to delete all VMs,
     // delete the complete subset of VMs if it's higher than
     // the default moray limit (hardcoded to 1000 currently)
-    params.noLimit = true;
+    var options = {
+        noLimit: true
+    };
+
+    var clonedParams = jsprim.deepCopy(params);
+    if (clonedParams.alias) {
+        clonedParams.alias = TEST_VMS_ALIAS + clonedParams.alias;
+    } else {
+        clonedParams.alias = TEST_VMS_ALIAS;
+    }
 
     // Make sure that the alias set is not empty so that we don't delete
     // all VMs
     assert.string(TEST_VMS_ALIAS);
     assert.ok(TEST_VMS_ALIAS.length > 0);
-    assert.equal(params.alias.indexOf(TEST_VMS_ALIAS), 0);
+    assert.equal(clonedParams.alias.indexOf(TEST_VMS_ALIAS), 0);
 
-    return moray.delVms(params, callback);
+    return moray.delVms(clonedParams, options, callback);
 };
