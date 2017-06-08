@@ -143,11 +143,11 @@ try {
         if (parsedCmdlineOpts.d) {
             vmsDataParam = JSON.parse(parsedCmdlineOpts.d);
         }
-
-        addTestVms(nbVmsParam, concurrencyParam, vmsDataParam);
     }
 } catch (err) {
     console.error('Could not parse command line options, error:', err);
     printUsage(cmdlineOptionsParser);
     process.exit(1);
 }
+
+addTestVms(nbVmsParam, concurrencyParam, vmsDataParam);
