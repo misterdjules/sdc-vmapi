@@ -127,8 +127,8 @@ function startVmapiService() {
 
     apiClients = createApiClients(config, vmapiLog);
 
-    vasync.pipeline({arg: {}, funcs: [
-        function initChangefeedPublisher(arg, next) {
+    vasync.pipeline({funcs: [
+        function initChangefeedPublisher(_, next) {
             var changefeedOptions = jsprim.deepCopy(config.changefeed);
             changefeedOptions.log = vmapiLog.child({ component: 'changefeed' },
                 true);
@@ -141,7 +141,7 @@ function startVmapiService() {
                 next();
             });
         },
-        function initMorayApi(arg, next) {
+        function initMorayApi(_, next) {
             assert.object(changefeedPublisher, 'changefeedPublisher');
 
             var morayConfig = jsprim.deepCopy(config.moray);
@@ -171,7 +171,7 @@ function startVmapiService() {
             });
 
         },
-        function connectToWfApi(arg, next) {
+        function connectToWfApi(_, next) {
             apiClients.wfapi.connect();
             /*
              * We intentionally don't need and want to wait for the Workflow API
@@ -199,7 +199,7 @@ function startVmapiService() {
                 apiClients: apiClients,
                 changefeedPublisher: changefeedPublisher,
                 morayBucketsInitializer: morayBucketsInitializer,
-                storage: moray,
+                moray: moray,
                 overlay: config.overlay,
                 reserveKvmStorage: config.reserveKvmStorage
             });

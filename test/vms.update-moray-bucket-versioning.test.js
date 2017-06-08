@@ -122,21 +122,21 @@ var ROLE_TAGS_MORAY_BUCKET_CONFIG_V2 = {
 };
 
 var testBucketsConfigV0 = {
-    vms: VMS_BUCKET_CONFIG_V0,
-    server_vms: SERVER_VMS_MORAY_BUCKET_CONFIG_V0,
-    vm_role_tags: ROLE_TAGS_MORAY_BUCKET_CONFIG_V0
+    VMS: VMS_BUCKET_CONFIG_V0,
+    SERVER_VMS: SERVER_VMS_MORAY_BUCKET_CONFIG_V0,
+    VM_ROLE_TAGS: ROLE_TAGS_MORAY_BUCKET_CONFIG_V0
 };
 
 var testBucketsConfigV1 = {
-    vms: VMS_BUCKET_CONFIG_V1,
-    server_vms: SERVER_VMS_MORAY_BUCKET_CONFIG_V1,
-    vm_role_tags: ROLE_TAGS_MORAY_BUCKET_CONFIG_V1
+    VMS: VMS_BUCKET_CONFIG_V1,
+    SERVER_VMS: SERVER_VMS_MORAY_BUCKET_CONFIG_V1,
+    VM_ROLE_TAGS: ROLE_TAGS_MORAY_BUCKET_CONFIG_V1
 };
 
 var testBucketsConfigV2 = {
-    vms: VMS_BUCKET_CONFIG_V2,
-    server_vms: SERVER_VMS_MORAY_BUCKET_CONFIG_V2,
-    vm_role_tags: ROLE_TAGS_MORAY_BUCKET_CONFIG_V2
+    VMS: VMS_BUCKET_CONFIG_V2,
+    SERVER_VMS: SERVER_VMS_MORAY_BUCKET_CONFIG_V2,
+    VM_ROLE_TAGS: ROLE_TAGS_MORAY_BUCKET_CONFIG_V2
 };
 
 var NB_TEST_OBJECTS = 200;
@@ -325,7 +325,7 @@ function testMigrationToBucketsConfig(bucketsConfig, options, t, callback) {
                 },
                 changefeedPublisher: changefeedUtils.createNoopCfPublisher(),
                 morayBucketsInitializer: morayBucketsInitializer,
-                storage: storage
+                moray: storage
             });
 
             next();

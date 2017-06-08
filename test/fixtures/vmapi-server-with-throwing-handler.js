@@ -39,7 +39,7 @@ vasync.pipeline({funcs: [
             apiClients: {
                 wfapi: mockedWfapiClient
             },
-            storage: {
+            moray: {
                 bucketsSetup: function bucketsSetup() { return true; }
             },
             changefeedPublisher: changefeedUtils.createNoopCfPublisher(),

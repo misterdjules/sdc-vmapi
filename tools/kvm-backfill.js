@@ -73,8 +73,8 @@ vasync.pipeline({funcs: [
                     next(morayBucketsSetupErr);
                 });
 
-            morayBucketsInitializer.on('buckets-setup-done',
-                function onMorayBucketsSetupDone() {
+            morayBucketsInitializer.on('done',
+                function onMorayBucketsInitDone() {
                     next();
                 });
         });

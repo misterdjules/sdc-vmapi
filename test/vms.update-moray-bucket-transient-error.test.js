@@ -72,7 +72,7 @@ exports.moray_init_transient_error = function (t) {
                 },
                 changefeedPublisher: changefeedUtils.createNoopCfPublisher(),
                 morayBucketsInitializer: morayBucketsInitializer,
-                storage: moray
+                moray: moray
             });
 
             next();

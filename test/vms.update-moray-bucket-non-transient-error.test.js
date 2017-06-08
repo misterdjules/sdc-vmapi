@@ -76,9 +76,9 @@ var ROLE_TAGS_MORAY_BUCKET_CONFIG = {
 };
 
 var morayBucketsConfigWithError = {
-    vms: VMS_BUCKET_CONFIG_WITH_ERROR,
-    server_vms: SERVER_VMS_MORAY_BUCKET_CONFIG,
-    vm_role_tags: ROLE_TAGS_MORAY_BUCKET_CONFIG
+    VMS: VMS_BUCKET_CONFIG_WITH_ERROR,
+    SERVER_VMS: SERVER_VMS_MORAY_BUCKET_CONFIG,
+    VM_ROLE_TAGS: ROLE_TAGS_MORAY_BUCKET_CONFIG
 };
 
 exports.moray_init_non_transient_error = function (t) {
@@ -97,9 +97,9 @@ exports.moray_init_non_transient_error = function (t) {
     vasync.pipeline({funcs: [
         function cleanLeftoverTestBuckets(arg, next) {
             testMoray.cleanupLeftoverBuckets([
-                morayBucketsConfigWithError.vms.name,
-                morayBucketsConfigWithError.server_vms.name,
-                morayBucketsConfigWithError.vm_role_tags.name
+                morayBucketsConfigWithError.VMS.name,
+                morayBucketsConfigWithError.SERVER_VMS.name,
+                morayBucketsConfigWithError.VM_ROLE_TAGS.name
             ],
             function onCleanupLeftoverBuckets(cleanupErr) {
                 t.ifError(cleanupErr,
@@ -134,7 +134,7 @@ exports.moray_init_non_transient_error = function (t) {
                 },
                 changefeedPublisher: changefeedUtils.createNoopCfPublisher(),
                 morayBucketsInitializer: morayBucketsInitializer,
-                storage: moray
+                moray: moray
             });
 
             next();

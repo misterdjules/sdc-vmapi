@@ -64,15 +64,15 @@ var ROLE_TAGS_MORAY_BUCKET_CONFIG = {
 };
 
 var morayBucketsConfigV0 = {
-    vms: VMS_BUCKET_CONFIG_V0,
-    server_vms: SERVER_VMS_MORAY_BUCKET_CONFIG,
-    vm_role_tags: ROLE_TAGS_MORAY_BUCKET_CONFIG
+    VMS: VMS_BUCKET_CONFIG_V0,
+    SERVER_VMS: SERVER_VMS_MORAY_BUCKET_CONFIG,
+    VM_ROLE_TAGS: ROLE_TAGS_MORAY_BUCKET_CONFIG
 };
 
 var morayBucketsConfigV1 = {
-    vms: VMS_BUCKET_CONFIG_V1,
-    server_vms: SERVER_VMS_MORAY_BUCKET_CONFIG,
-    vm_role_tags: ROLE_TAGS_MORAY_BUCKET_CONFIG
+    VMS: VMS_BUCKET_CONFIG_V1,
+    SERVER_VMS: SERVER_VMS_MORAY_BUCKET_CONFIG,
+    VM_ROLE_TAGS: ROLE_TAGS_MORAY_BUCKET_CONFIG
 };
 
 var morayBucketsInitializer;
@@ -94,9 +94,9 @@ exports.moray_init_invalid_index_removal = function (t) {
     vasync.pipeline({funcs: [
         function cleanLeftoverTestBuckets(arg, next) {
             testMoray.cleanupLeftoverBuckets([
-                morayBucketsConfigV0.vms.name,
-                morayBucketsConfigV0.server_vms.name,
-                morayBucketsConfigV0.vm_role_tags.name
+                morayBucketsConfigV0.VMS.name,
+                morayBucketsConfigV0.SERVER_VMS.name,
+                morayBucketsConfigV0.VM_ROLE_TAGS.name
             ],
             function onCleanupLeftoverBuckets(cleanupErr) {
                 t.ifError(cleanupErr,
@@ -158,7 +158,7 @@ exports.moray_init_invalid_index_removal = function (t) {
                 },
                 changefeedPublisher: changefeedUtils.createNoopCfPublisher(),
                 morayBucketsInitializer: morayBucketsInitializer,
-                storage: moray
+                moray: moray
             });
 
             next();
