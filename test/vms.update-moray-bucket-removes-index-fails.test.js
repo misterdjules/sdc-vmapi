@@ -105,50 +105,46 @@ exports.moray_init_invalid_index_removal = function (t) {
             });
         },
         function setupMorayWithBucketsFirstVersion(arg, next) {
-            morayInit.startMorayInit({
+            var moraySetup = morayInit.startMorayInit({
                 morayConfig: common.config.moray,
                 morayBucketsConfig: morayBucketsConfigV0,
                 changefeedPublisher: changefeedUtils.createNoopCfPublisher()
-            }, function onMorayStorageInitStarted(storageSetup) {
-                t.ok(true, 'moray storage initialization should have started');
-
-                morayBucketsInitializer = storageSetup.morayBucketsInitializer;
-                morayClient = storageSetup.morayClient;
-                moray = storageSetup.moray;
-
-                morayBucketsInitializer.on('done',
-                    function onMorayBucketsInit() {
-                        t.ok(true,
-                            'moray buckets initialization with correct ' +
-                                'configuration should be successfull');
-
-                        morayClient.close();
-
-                        next();
-                    });
             });
+
+            morayBucketsInitializer = moraySetup.morayBucketsInitializer;
+            morayClient = moraySetup.morayClient;
+            moray = moraySetup.moray;
+
+            morayBucketsInitializer.on('done',
+                function onMorayBucketsInit() {
+                    t.ok(true,
+                        'moray buckets initialization with correct ' +
+                            'configuration should be successfull');
+
+                    morayClient.close();
+
+                    next();
+                });
         },
         function setupMorayWithIncorrectBucketsConfig(arg, next) {
-            morayInit.startMorayInit({
+            var moraySetup = morayInit.startMorayInit({
                 morayConfig: common.config.moray,
                 morayBucketsConfig: morayBucketsConfigV1,
                 changefeedPublisher: changefeedUtils.createNoopCfPublisher()
-            }, function onMorayStorageInitStarted(storageSetup) {
-                t.ok(true, 'moray storage initialization should have started');
-
-                morayBucketsInitializer = storageSetup.morayBucketsInitializer;
-                morayClient = storageSetup.morayClient;
-                moray = storageSetup.moray;
-
-                morayBucketsInitializer.on('error',
-                    function onMorayBucketsInit() {
-                        t.ok(true,
-                            'moray buckets initialization with incorrect ' +
-                                'configuration should error');
-
-                        next();
-                    });
             });
+
+            morayBucketsInitializer = moraySetup.morayBucketsInitializer;
+            morayClient = moraySetup.morayClient;
+            moray = moraySetup.moray;
+
+            morayBucketsInitializer.on('error',
+                function onMorayBucketsInit() {
+                    t.ok(true,
+                        'moray buckets initialization with incorrect ' +
+                            'configuration should error');
+
+                    next();
+                });
         },
         function initVmapi(arg, next) {
 

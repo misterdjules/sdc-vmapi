@@ -188,25 +188,22 @@ function testMigrationToBucketsConfig(bucketsConfig, options, t, callback) {
 
     vasync.pipeline({funcs: [
         function initMorayStorage(arg, next) {
-            morayInit.startMorayInit({
+            var moraySetup = morayInit.startMorayInit({
                 morayConfig: common.config.moray,
                 morayBucketsConfig: bucketsConfig,
                 changefeedPublisher: changefeedUtils.createNoopCfPublisher()
-            }, function onMorayStorageInitStarted(storageSetup) {
-
-                t.ok(true, 'moray storage initialization should have started');
-
-                morayBucketsInitializer = storageSetup.morayBucketsInitializer;
-                morayClient = storageSetup.morayClient;
-                storage = storageSetup.moray;
-
-                morayBucketsInitializer.on('done',
-                    function onMorayBucketsInit() {
-                        t.ok(true,
-                            'moray initialization should be successfull');
-                        next();
-                    });
             });
+
+            morayBucketsInitializer = moraySetup.morayBucketsInitializer;
+            morayClient = moraySetup.morayClient;
+            storage = moraySetup.moray;
+
+            morayBucketsInitializer.on('done',
+                function onMorayBucketsInit() {
+                    t.ok(true,
+                        'moray initialization should be successfull');
+                    next();
+                });
         },
         /*
          * After a moray bucket is migrated to a version that adds a new index,
@@ -434,66 +431,66 @@ exports.moray_init_bucket_versioning = function (t) {
             });
         },
         function setupOriginalMorayBuckets(arg, next) {
-            morayInit.startMorayInit({
+            var morayBucketsInitializer;
+            var morayClient;
+            var moraySetup = morayInit.startMorayInit({
                 morayConfig: common.config.moray,
                 morayBucketsConfig: testBucketsConfigV0,
                 changefeedPublisher: changefeedUtils.createNoopCfPublisher()
-            }, function onMorayStorageInitStarted(storageSetup) {
-                var morayBucketsInitializer =
-                    storageSetup.morayBucketsInitializer;
-                var morayClient = storageSetup.morayClient;
-                var nextOnce = once(next);
-
-                function cleanUp() {
-                    morayBucketsInitializer.removeAllListeners('error');
-                    morayBucketsInitializer.removeAllListeners('done');
-                    morayClient.close();
-                }
-
-                morayBucketsInitializer.on('done',
-                    function onMorayBucketsInit() {
-                        t.ok(true,
-                            'original moray buckets setup should be ' +
-                                'successful');
-
-                        cleanUp();
-                        nextOnce();
-                    });
-
-                morayBucketsInitializer.on('error',
-                    function onMorayBucketsInitError(morayBucketsInitErr) {
-                        t.ok(!morayBucketsInitErr,
-                            'original moray buckets initialization should ' +
-                                'not error');
-
-                        cleanUp();
-                        nextOnce(morayBucketsInitErr);
-                    });
             });
+            var nextOnce = once(next);
+
+            morayBucketsInitializer = moraySetup.morayBucketsInitializer;
+            morayClient = moraySetup.morayClient;
+
+            function cleanUp() {
+                morayBucketsInitializer.removeAllListeners('error');
+                morayBucketsInitializer.removeAllListeners('done');
+                morayClient.close();
+            }
+
+            morayBucketsInitializer.on('done',
+                function onMorayBucketsInit() {
+                    t.ok(true,
+                        'original moray buckets setup should be ' +
+                            'successful');
+
+                    cleanUp();
+                    nextOnce();
+                });
+
+            morayBucketsInitializer.on('error',
+                function onMorayBucketsInitError(morayBucketsInitErr) {
+                    t.ok(!morayBucketsInitErr,
+                        'original moray buckets initialization should ' +
+                            'not error');
+
+                    cleanUp();
+                    nextOnce(morayBucketsInitErr);
+                });
         },
         function writeTestObjects(arg, next) {
-            morayInit.startMorayInit({
+            var morayBucketsInitializer;
+            var morayClient;
+            var moraySetup = morayInit.startMorayInit({
                 morayConfig: common.config.moray,
                 morayBucketsConfig: testBucketsConfigV0,
                 changefeedPublisher: changefeedUtils.createNoopCfPublisher()
-            }, function onMorayStorageInitStarted(storageSetup) {
-                var morayBucketsInitializer;
-                var morayClient;
-
-                morayBucketsInitializer = storageSetup.morayBucketsInitializer;
-                morayClient = storageSetup.morayClient;
-
-                morayBucketsInitializer.on('done',
-                    function onMorayBucketsInitialized() {
-                        writeObjects(morayClient, VMS_BUCKET_NAME, {
-                            indexed_property: 'foo'
-                        }, NB_TEST_OBJECTS, function onTestObjectsWritten(err) {
-                            t.ok(!err, 'writing test objects should not error');
-                            morayClient.close();
-                            next(err);
-                        });
-                    });
             });
+
+            morayBucketsInitializer = moraySetup.morayBucketsInitializer;
+            morayClient = moraySetup.morayClient;
+
+            morayBucketsInitializer.on('done',
+                function onMorayBucketsInitialized() {
+                    writeObjects(morayClient, VMS_BUCKET_NAME, {
+                        indexed_property: 'foo'
+                    }, NB_TEST_OBJECTS, function onTestObjectsWritten(err) {
+                        t.ok(!err, 'writing test objects should not error');
+                        morayClient.close();
+                        next(err);
+                    });
+                });
         },
         /*
          * First, migrate from version 0 to 1, which is a valid migration and

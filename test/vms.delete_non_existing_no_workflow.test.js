@@ -76,32 +76,29 @@ exports.delete_vm_with_null_server_uuid = function (t) {
 };
 
 exports.cleanup_test_vms = function (t) {
-    morayInit.startMorayInit({
+    var moray;
+    var morayBucketsInitializer;
+    var morayClient;
+
+    var moraySetup = morayInit.startMorayInit({
         morayConfig: common.config.moray,
         maxBucketsSetupAttempts: 1,
         maxBucketsReindexAttempts: 1,
         changefeedPublisher: changefeedUtils.createNoopCfPublisher()
-    }, function onMorayStorageInitStarted(morayStorageSetup) {
-        var morayBucketsInitializer;
-        var morayClient;
-        var moray;
+    });
 
-        t.ok(morayStorageSetup,
-            'moray storage setup should start successfully');
+    moray = moraySetup.moray;
+    morayBucketsInitializer = moraySetup.morayBucketsInitializer;
+    morayClient = moraySetup.morayClient;
 
-        morayBucketsInitializer = morayStorageSetup.morayBucketsInitializer;
-        morayClient = morayStorageSetup.morayClient;
-        moray = morayStorageSetup.moray;
+    morayBucketsInitializer.on('done', function onMorayStorageReady() {
+        vmTest.deleteTestVMs(moray, {},
+            function testVmDeleted(deleteVmsErr) {
+                morayClient.close();
 
-        morayBucketsInitializer.on('done', function onMorayStorageReady() {
-            vmTest.deleteTestVMs(moray, {},
-                function testVmDeleted(deleteVmsErr) {
-                    morayClient.close();
-
-                    t.ok(!deleteVmsErr,
-                        'Deleting test VMs should not error');
-                    t.done();
-                });
-        });
+                t.ok(!deleteVmsErr,
+                    'Deleting test VMs should not error');
+                t.done();
+            });
     });
 };

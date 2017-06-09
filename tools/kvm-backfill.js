@@ -56,29 +56,29 @@ vasync.pipeline({funcs: [
         changefeedPublisher.on('moray-ready', next);
     },
     function initMoray(ctx, next) {
-        morayInit.startMorayInit({
+        var morayBucketsInitializer;
+        var moraySetup = morayInit.startMorayInit({
             morayConfig: config.moray,
             changefeedPublisher: changefeedPublisher,
             maxBucketsReindexAttempts: 1,
             maxBucketsSetupAttempts: 1,
             log: log.child({ component: 'moray-init' }, true)
-        }, function onMorayInitStarted(storageSetup) {
-            var morayBucketsInitializer = storageSetup.morayBucketsInitializer;
-            moray = storageSetup.moray;
-            morayClient = storageSetup.morayClient;
-
-            morayBucketsInitializer.on('error',
-                function onMorayBucketsSetup(morayBucketsSetupErr) {
-                    morayClient.close();
-                    next(morayBucketsSetupErr);
-                });
-
-            morayBucketsInitializer.on('done',
-                function onMorayBucketsInitDone() {
-                    next();
-                });
         });
 
+        morayBucketsInitializer = moraySetup.morayBucketsInitializer;
+        moray = moraySetup.moray;
+        morayClient = moraySetup.morayClient;
+
+        morayBucketsInitializer.on('error',
+            function onMorayBucketsSetup(morayBucketsSetupErr) {
+                morayClient.close();
+                next(morayBucketsSetupErr);
+            });
+
+        morayBucketsInitializer.on('done',
+            function onMorayBucketsInitDone() {
+                next();
+            });
     }
 ]}, function onInitDone(initErr) {
     processVms(0, VMS_LIMIT, processCb);

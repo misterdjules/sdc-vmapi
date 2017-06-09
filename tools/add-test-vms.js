@@ -87,39 +87,42 @@ function addTestVms(nbVms, concurrency, data) {
 
     data = data || {};
 
-    morayInit.startMorayInit({
+    var morayClient;
+    var moray;
+    var morayBucketsInitializer;
+    var moraySetup = morayInit.startMorayInit({
         morayConfig: morayConfig,
         maxBucketsReindexAttempts: 1,
         maxBucketsSetupAttempts: 1,
         changefeedPublisher: changefeedUtils.createNoopCfPublisher()
-    }, function onMorayInitStarted(storageSetup) {
-        var morayClient = storageSetup.morayClient;
-        var moray = storageSetup.moray;
-        var morayBucketsInitializer = storageSetup.morayBucketsInitializer;
-
-        morayBucketsInitializer.on('done',
-            function onMorayBucketsSetup() {
-                log.debug('Number of test VMs to create:', nbVms);
-                assert.number(nbVms);
-
-                log.debug('concurrency:', concurrency);
-                assert.number(concurrency);
-
-                testVm.createTestVMs(nbVms, moray, {
-                    concurrency: concurrency,
-                    log: log
-                }, data, function allVmsCreated(err) {
-                    if (err) {
-                        log.error({err: err}, 'Error when creating test VMs');
-                    } else {
-                        log.info('All VMs created successfully');
-                    }
-
-                    log.debug('Closing moray connection');
-                    morayClient.close();
-                });
-            });
     });
+
+    morayClient = moraySetup.morayClient;
+    moray = moraySetup.moray;
+    morayBucketsInitializer = moraySetup.morayBucketsInitializer;
+
+    morayBucketsInitializer.on('done',
+        function onMorayBucketsSetup() {
+            log.debug('Number of test VMs to create:', nbVms);
+            assert.number(nbVms);
+
+            log.debug('concurrency:', concurrency);
+            assert.number(concurrency);
+
+            testVm.createTestVMs(nbVms, moray, {
+                concurrency: concurrency,
+                log: log
+            }, data, function allVmsCreated(err) {
+                if (err) {
+                    log.error({err: err}, 'Error when creating test VMs');
+                } else {
+                    log.info('All VMs created successfully');
+                }
+
+                log.debug('Closing moray connection');
+                morayClient.close();
+            });
+        });
 }
 
 var cmdlineOptionsParser = dashdash.createParser({options: cmdlineOptions});

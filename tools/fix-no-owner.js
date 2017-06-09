@@ -56,25 +56,26 @@ vasync.pipeline({funcs: [
         changefeedPublisher.on('moray-ready', next);
     },
     function initMoray(ctx, next) {
-        morayInit.startMorayInit({
+        var morayBucketsInitializer;
+        var moraySetup = morayInit.startMorayInit({
             morayConfig: config.moray,
             changefeedPublisher: changefeedPublisher,
             maxBucketsReindexAttempts: 1,
             maxBucketsSetupAttempts: 1
-        }, function onMorayInitStarted(storageSetup) {
-            var morayBucketsInitializer = storageSetup.morayBucketsInitializer;
-
-            morayClient = storageSetup.morayClient;
-            moray = storageSetup.moray;
-
-            morayBucketsInitializer.on('error',
-                function onMorayBucketsInitError(morayBucketsInitErr) {
-                    morayClient.close();
-                    next(morayBucketsInitErr);
-                });
-
-            morayBucketsInitializer.on('done', next);
         });
+
+        morayBucketsInitializer = moraySetup.morayBucketsInitializer;
+
+        morayClient = moraySetup.morayClient;
+        moray = moraySetup.moray;
+
+        morayBucketsInitializer.on('error',
+            function onMorayBucketsInitError(morayBucketsInitErr) {
+                morayClient.close();
+                next(morayBucketsInitErr);
+            });
+
+        morayBucketsInitializer.on('done', next);
     },
     function initWfApi(ctx, next) {
         wfapi = new WFAPI(config.wfapi);

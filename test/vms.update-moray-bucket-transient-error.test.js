@@ -48,22 +48,18 @@ exports.moray_init_transient_error = function (t) {
 
     vasync.pipeline({funcs: [
         function initMorayStorage(arg, next) {
-            morayInit.startMorayInit({
+            var moraySetup = morayInit.startMorayInit({
                 morayConfig: common.config.moray,
                 changefeedPublisher: changefeedUtils.createNoopCfPublisher()
-            }, function onMorayStorageInitStarted(storageSetup) {
-                t.ok(true, 'moray storage initialization should have ' +
-                    'started');
-
-                morayBucketsInitializer =
-                    storageSetup.morayBucketsInitializer;
-                morayClient = storageSetup.morayClient;
-                origMorayClientGetBucket = morayClient.getBucket;
-
-                moray = storageSetup.moray;
-
-                next();
             });
+
+            morayBucketsInitializer = moraySetup.morayBucketsInitializer;
+            morayClient = moraySetup.morayClient;
+            origMorayClientGetBucket = morayClient.getBucket;
+
+            moray = moraySetup.moray;
+
+            next();
         },
         function initVmapi(arg, next) {
              vmapiApp = new VmapiApp({

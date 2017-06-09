@@ -108,24 +108,22 @@ exports.moray_init_non_transient_error = function (t) {
             });
         },
         function initMorayStorage(arg, next) {
-            morayInit.startMorayInit({
+            var moraySetup = morayInit.startMorayInit({
                 morayConfig: common.config.moray,
                 morayBucketsConfig: morayBucketsConfigWithError,
                 changefeedPublisher: changefeedUtils.createNoopCfPublisher()
-            }, function onMorayStorageInitStarted(storageSetup) {
-                t.ok(true, 'moray storage initialization should have started');
-
-                morayBucketsInitializer = storageSetup.morayBucketsInitializer;
-                morayClient = storageSetup.morayClient;
-                moray = storageSetup.moray;
-
-                morayBucketsInitializer.on('error',
-                    function onMorayBucketsInitError(morayBucketsInitErr) {
-                        t.ok(morayBucketsInitErr,
-                            'moray initialization should error');
-                        next();
-                    });
             });
+
+            morayBucketsInitializer = moraySetup.morayBucketsInitializer;
+            morayClient = moraySetup.morayClient;
+            moray = moraySetup.moray;
+
+            morayBucketsInitializer.on('error',
+                function onMorayBucketsInitError(morayBucketsInitErr) {
+                    t.ok(morayBucketsInitErr,
+                        'moray initialization should error');
+                    next();
+                });
         },
         function initVmapi(arg, next) {
             vmapiApp = new VmapiApp({

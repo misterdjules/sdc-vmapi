@@ -147,29 +147,28 @@ function startVmapiService() {
             var morayConfig = jsprim.deepCopy(config.moray);
             morayConfig.changefeedPublisher = changefeedPublisher;
 
-            morayInit.startMorayInit({
+            var moraySetup = morayInit.startMorayInit({
                 morayConfig: morayConfig,
                 log: vmapiLog.child({ component: 'moray-init' }, true),
                 changefeedPublisher: changefeedPublisher
-            }, function onMorayStorageInitialized(storageSetup) {
-                morayBucketsInitializer = storageSetup.morayBucketsInitializer;
-                morayClient = storageSetup.morayClient;
-                moray = storageSetup.moray;
-
-                /*
-                 * We don't want to wait for the Moray initialization process to
-                 * be done before creating the HTTP server that will provide
-                 * VMAPI's API endpoints, as:
-                 *
-                 * 1. some endpoints can function properly without using
-                 * the Moray storage layer.
-                 *
-                 * 2. some endpoints are needed to provide status information,
-                 * including status information about the storage layer.
-                 */
-                next();
             });
 
+            morayBucketsInitializer = moraySetup.morayBucketsInitializer;
+            morayClient = moraySetup.morayClient;
+            moray = moraySetup.moray;
+
+            /*
+             * We don't want to wait for the Moray initialization process to
+             * be done before creating the HTTP server that will provide
+             * VMAPI's API endpoints, as:
+             *
+             * 1. some endpoints can function properly without using
+             * the Moray storage layer.
+             *
+             * 2. some endpoints are needed to provide status information,
+             * including status information about the storage layer.
+             */
+            next();
         },
         function connectToWfApi(_, next) {
             apiClients.wfapi.connect();

@@ -226,23 +226,21 @@ function testMarkerPagination(options, t, callback) {
 }
 
 exports.init_storage_layer = function (t) {
-    morayInit.startMorayInit({
+    var morayBucketsInitializer;
+
+    var moraySetup = morayInit.startMorayInit({
         morayConfig: common.config.moray,
         maxBucketsReindexAttempts: 1,
         maxBucketsSetupAttempts: 1,
         changefeedPublisher: changefeedUtils.createNoopCfPublisher()
-    }, function onMorayStorageInitStarted(storageSetup) {
-        var morayBucketsInitializer;
+    });
 
-        t.ok(true, 'moray storage initialization should be successful');
+    morayBucketsInitializer = moraySetup.morayBucketsInitializer;
+    morayClient = moraySetup.morayClient;
+    storage = moraySetup.moray;
 
-        morayBucketsInitializer = storageSetup.morayBucketsInitializer;
-        morayClient = storageSetup.morayClient;
-        storage = storageSetup.moray;
-
-        morayBucketsInitializer.on('done', function onMorayStorageReady() {
-            t.done();
-        });
+    morayBucketsInitializer.on('done', function onMorayStorageReady() {
+        t.done();
     });
 };
 
