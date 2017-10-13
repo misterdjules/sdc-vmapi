@@ -33,8 +33,12 @@ var VmapiApp = require('./lib/vmapi');
 var WFAPI = require('./lib/apis/wfapi');
 
 var configLoader = require('./lib/config-loader');
+var dataMigrations = require('./lib/data-migrations');
 var morayInit = require('./lib/moray/moray-init.js');
 
+var DATA_MIGRATIONS;
+var DataMigrationsController = dataMigrations.DataMigrationsController;
+var dataMigrationCtrl;
 var morayBucketsInitializer;
 var morayClient;
 var moray;
@@ -152,6 +156,23 @@ function startVmapiService() {
                 next();
             });
         },
+        function loadDataMigrations(_, next) {
+            vmapiLog.info('Loading data migrations modules');
+
+            dataMigrations.loadMigrations(
+                function onMigrationsLoaded(migrationsLoadErr, migrations) {
+                    if (migrationsLoadErr) {
+                        vmapiLog.error({err: migrationsLoadErr},
+                                'Error when loading data migrations modules');
+                    } else {
+                        vmapiLog.info('Loaded data migrations modules ' +
+                            'successfully!');
+                    }
+
+                    DATA_MIGRATIONS = migrations;
+                    next(migrationsLoadErr);
+                });
+        },
         function initMorayApi(_, next) {
             assert.object(changefeedPublisher, 'changefeedPublisher');
 
@@ -181,6 +202,33 @@ function startVmapiService() {
              */
             next();
         },
+        function startDataMigrations(_, next) {
+            assert.arrayOfObject(DATA_MIGRATIONS, 'DATA_MIGRATIONS');
+
+            dataMigrationCtrl = new DataMigrationsController(DATA_MIGRATIONS, {
+                log: vmapiLog.child({
+                    component: 'migrations-controller'
+                }, true),
+                moray: moray
+            });
+
+            /*
+             * We purposedly start data migrations *only when all buckets are
+             * updated and reindexed*. Otherwise, if we we migrated records that
+             * have a value for a field for which a new index was just added,
+             * moray could discard that field when fetching the object using
+             * findObjects or getObject requests (See
+             * http://smartos.org/bugview/MORAY-104 and
+             * http://smartos.org/bugview/MORAY-428). We could thus migrate
+             * those records erroneously, and in the end write bogus data.
+             */
+            morayBucketsInitializer.on('done',
+                function onMorayBucketsInitialized() {
+                    dataMigrationCtrl.start();
+                });
+
+            next();
+        },
         function connectToWfApi(_, next) {
             apiClients.wfapi.connect();
             /*
@@ -201,17 +249,18 @@ function startVmapiService() {
             process.exitCode = 1;
         } else {
             var vmapiApp = new VmapiApp({
-                version: config.version,
+                apiClients: apiClients,
+                changefeedPublisher: changefeedPublisher,
+                dataMigrationCtrl: dataMigrationCtrl,
                 log: vmapiLog.child({ component: 'http-api' }, true),
+                moray: moray,
+                morayBucketsInitializer: morayBucketsInitializer,
+                overlay: config.overlay,
+                reserveKvmStorage: config.reserveKvmStorage,
                 serverConfig: {
                     bindPort: config.api.port
                 },
-                apiClients: apiClients,
-                changefeedPublisher: changefeedPublisher,
-                morayBucketsInitializer: morayBucketsInitializer,
-                moray: moray,
-                overlay: config.overlay,
-                reserveKvmStorage: config.reserveKvmStorage
+                version: config.version
             });
 
             vmapiApp.listen();

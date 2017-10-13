@@ -428,22 +428,23 @@ will result in a request error.
 
 | Param            | Type                                             | Description                                     |
 | ---------------- | ------------------------------------------------ | ----------------------------------------------- |
-| uuid             | UUID                                             | VM uuid                                         |
-| owner_uuid       | UUID                                             | VM Owner                                        |
-| server_uuid      | UUID                                             | Server where the VM lives                       |
-| image_uuid       | UUID                                             | Image of the VM                                 |
+| alias            | String                                           | VM Alias|
 | billing_id       | UUID                                             | UUID of the package the VM was created with     |
 | brand            | String                                           | Brand of the VM (joyent, joyent-minimal or kvm) |
-| docker           | Boolean                                          | true if the VM is a docker VM, false otherwise  |
-| alias            | String                                           | VM Alias                                        |
-| state            | String                                           | running, stopped, active or destroyed           |
-| ram              | Number                                           | Amount of memory of the VM                      |
-| uuids            | String (comma-separated UUID values)             | List of VM UUIDs to match                       |
 | create_timestamp | Unix Time in milliseconds or UTC ISO Date String | VM creation timestamp                           |
+| docker           | Boolean                                          | true if the VM is a docker VM, false otherwise  |
+| fields           | String (comma-separated values)                  | Specify which VM fields to return, see below    |
+| image_uuid       | UUID                                             | Image of the VM                                 |
+| internal_metadata| String                                           | VM internal metadata, see below
+| owner_uuid       | UUID                                             | VM Owner                                        |
 | package_name     | String                                           | DEPRECATED: use billing_id                      |
 | package_version  | String                                           | DEPRECATED: use billing_id                      |
+| uuid             | UUID                                             | VM uuid                                         |
+| ram              | Number                                           | Amount of memory of the VM                      |
+| server_uuid      | UUID                                             | Server where the VM lives                       |
+| state            | String                                           | running, stopped, active or destroyed           |
+| uuids            | String (comma-separated UUID values)             | List of VM UUIDs to match                       |
 | tag.key          | String                                           | VM tags, see below                              |
-| fields           | String (comma-separated values)                  | Specify which VM fields to return, see below    |
 
 ### Specifying VM Fields to Return
 
@@ -677,6 +678,24 @@ result in a request error.
 ### Tags
 
 VMs can also be searched by tags. Tags are key/value pairs that let us identify a vm by client-specific criteria. If a VM is tagged as 'role=master', then the search filter to be added to the request params should be 'tag.role=master'. When a tag value is '*', the search is performed for VMs that are tagged with any value of the specified key. Any number of tags can be specified. See the examples section for sample searches of VMs by tags.
+
+### Internal metadata
+
+VMs can be searched by internal metadata. Internal metadata is an object with
+keys and values that are always strings. There's no nested objects/properties.
+Matching needs to be exact, pattern matching is not available.
+
+For example, to search for VMs with a `docker:logdriver` internal metadata key
+with a value of `"json-file"`, one can send the following query:
+
+```
+GET /vms?internal_metadata.docker:logdriver=json-file
+```
+
+There's one limitation to keep in mind: it is currently not possible to match a
+string in a given internal metadata key that is larger than 100 characters. As a
+result, when trying to match such a string, one has to truncate it to its 100
+first characters beforehand.
 
 ### ListVms Responses
 
