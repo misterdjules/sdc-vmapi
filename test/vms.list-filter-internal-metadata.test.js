@@ -14,15 +14,13 @@ var bunyan = require('bunyan');
 var Logger = require('bunyan');
 var restify = require('restify');
 var util = require('util');
+var vasync = require('vasync');
 
 var changefeedUtils = require('../lib/changefeed');
 var common = require('./common');
 var morayInit = require('../lib/moray/moray-init');
 var validation = require('../lib/common/validation');
 var vmTest = require('./lib/vm');
-
-var longMetadataValue = Buffer.alloc(101, 'a');
-longMetadataValue.write('b', 100, 1);
 
 var client;
 var moray;
@@ -33,6 +31,90 @@ var testLogger = bunyan.createLogger({
     level: 'debug',
     serializers: restify.bunyan.serializers
 });
+
+function runValidationErrorTestCase(t, testCase, callback) {
+    assert.object(t, 't');
+    assert.object(testCase, 'testCase');
+    assert.string(testCase.queryString, 'testCase.queryString');
+    assert.object(testCase.expectedErr, 'testCase.expectedErr');
+    assert.func(callback, 'callback');
+
+    var listVmsQuery = '/vms?' + testCase.queryString;
+
+    client.get(listVmsQuery, function onListVms(err, req, res, body) {
+        t.ok(err, 'listing VMs should error');
+        if (err) {
+            t.deepEqual(body, testCase.expectedErr,
+                'Error should be equal to ' +
+                    util.inspect(testCase.expectedErr) + ', got: ' +
+                    util.inspect(err));
+        }
+
+        callback();
+    });
+}
+
+function runValidTestCase(t, testCase, callback) {
+    assert.object(t, 't');
+    assert.object(testCase, 'testCase');
+    assert.arrayOfString(testCase.queryStrings, 'testCase.queryStrings');
+    assert.arrayOfObject(testCase.vmsToCreate, 'testCase.vmsToCreate');
+    assert.func(callback, 'callback');
+
+    var createdVmUuids = [];
+    var vmsToCreate = testCase.vmsToCreate;
+
+    vasync.pipeline({funcs: [
+        function createTestVms(_, next) {
+            vasync.forEachPipeline({
+                func: function createTestVm(vmParams, done) {
+                    vmTest.createTestVm(moray, {log: testLogger}, vmParams,
+                        function onVmCreated(vmCreatErr, vmUuid) {
+                            createdVmUuids.push(vmUuid);
+                            done(vmCreatErr);
+                        });
+                },
+                inputs: vmsToCreate
+            }, next);
+        },
+        function listVms(_, next) {
+            vasync.forEachPipeline({func: function doList(queryString, done) {
+                var idx;
+                var query = '/vms?' + queryString;
+                var returnedVm;
+
+                client.get(query, function onList(err, req, res, body) {
+                    t.ifError(err, 'listing VM should not error');
+                    t.ok(body, 'response should not be empty');
+                    if (body) {
+                        t.equal(body.length, vmsToCreate.length,
+                            'response should include ' +
+                                vmsToCreate.length + ' VMs, got: ' +
+                                body.length);
+
+                        for (idx = 0; idx < body.length; ++idx) {
+                            returnedVm = body[idx];
+                            t.notEqual(createdVmUuids.indexOf(returnedVm.uuid),
+                                -1,
+                                'returned VM UUID (' + returnedVm.uuid + ') ' +
+                                    'should be included in created VMs UUIDs ' +
+                                    '(' + createdVmUuids.join(', ') + ')');
+                        }
+                    }
+
+                    done();
+                });
+            }, inputs: testCase.queryStrings
+            }, next);
+        },
+        function deleteTestVms(_, next) {
+            vmTest.deleteTestVMs(moray, {}, next);
+        }
+    ]}, function onDone(err) {
+        t.ifError(err);
+        callback();
+    });
+}
 
 exports.setUp = function (callback) {
     common.setUp(function (err, _client) {
@@ -69,176 +151,113 @@ exports.cleanup_leftover_test_vms = function (t) {
     });
 };
 
-exports.list_invalid_empty_metadata_key = function (t) {
-    var expectedError = {
-        code: 'ValidationFailed',
-        message: 'Invalid Parameters',
-        errors: [ {
-            field: 'internal_metadata',
-            code: 'Invalid',
-            message: 'Invalid internal_metadata key: ""'
-        } ]
-    };
-    var listVmsQuery = '/vms?internal_metadata.=foo';
-
-    client.get(listVmsQuery, function onListVms(err, req, res, body) {
-        t.ok(err,
-            'listing VMs using invalid internal_metadata key should error');
-        if (err) {
-            t.deepEqual(body, expectedError, 'Error should be equal to ' +
-                expectedError + ', got: ' + err);
+exports.run_validation_error_tests = function (t) {
+    var testCases = [
+        {
+            queryString: 'internal_metadata.=foo',
+            expectedErr: {
+                code: 'ValidationFailed',
+                message: 'Invalid Parameters',
+                errors: [ {
+                    field: 'internal_metadata',
+                    code: 'Invalid',
+                    message: 'Invalid internal_metadata key: ""'
+                } ]
+            }
+        },
+        {
+            queryString: 'internal_metadata.foo=',
+            expectedErr: {
+                code: 'ValidationFailed',
+                message: 'Invalid Parameters',
+                errors: [ {
+                    field: 'internal_metadata',
+                    code: 'Invalid',
+                    message: 'Invalid internal_metadata value: ""'
+                } ]
+            }
         }
+    ];
 
+    vasync.forEachPipeline({
+        func: runValidationErrorTestCase.bind(null, t),
+        inputs: testCases
+    }, function onAllValidationErrorTestCasesRan(err) {
         t.done();
     });
 };
 
-exports.list_invalid_metadata_key = function (t) {
-    var expectedError = {
-        code: 'ValidationFailed',
-        message: 'Invalid Parameters',
-        errors: [ {
-            field: 'internal_metadata',
-            code: 'Invalid',
-            message: 'Invalid internal_metadata key: "bar"'
-        } ]
-    };
-    var listVmsQuery = '/vms?internal_metadata.bar=foo';
+exports.run_valid_test_cases = function (t) {
+    var clampedLongMetadataValue;
+    var longMetadataValue;
 
-    client.get(listVmsQuery, function onListVms(err, req, res, body) {
-        t.ok(err,
-            'listing VMs using invalid internal_metadata key should error');
-        if (err) {
-            t.deepEqual(body, expectedError, 'Error should be equal to ' +
-                expectedError + ', got: ' + err);
+    longMetadataValue = Buffer.alloc(101, 'a');
+    longMetadataValue.write('b', 100, 1);
+    longMetadataValue = longMetadataValue.toString();
+
+    clampedLongMetadataValue = longMetadataValue.substr(0, 100);
+
+    var testCases = [
+        /*
+         * Simple key/value format.
+         */
+        {
+            vmsToCreate: [ {internal_metadata: {'key': 'foo'}} ],
+            queryStrings: [
+                'internal_metadata.key=foo',
+                'predicate=' + JSON.stringify({
+                    eq: ['internal_metadata.key', 'foo']
+                }),
+                'query=(internal_metadata_search_array=key=foo)'
+            ]
+        },
+        /*
+         * Dotted key.
+         */
+        {
+            vmsToCreate: [ {internal_metadata: {'some.key': 'foo'}} ],
+            queryStrings: [
+                'internal_metadata.some.key=foo',
+                'predicate=' + JSON.stringify({
+                    eq: ['internal_metadata.some.key', 'foo']
+                }),
+                'query=(internal_metadata_search_array=some.key=foo)'
+            ]
+        },
+        /*
+         * Namespaced key.
+         */
+        {
+            vmsToCreate: [ {internal_metadata: {'some:key': 'foo'}} ],
+            queryStrings: [
+                'internal_metadata.some:key=foo',
+                'predicate=' + JSON.stringify({
+                    eq: ['internal_metadata.some:key', 'foo']
+                }),
+                'query=(internal_metadata_search_array=some:key=foo)'
+            ]
+        },
+        /*
+         * Value over the 100 characters limit
+         */
+        {
+            vmsToCreate: [ {internal_metadata: {'key':
+                longMetadataValue.toString()}} ],
+            queryStrings: [
+                'internal_metadata.key=' + clampedLongMetadataValue,
+                'predicate=' + JSON.stringify({
+                    eq: ['internal_metadata.key', clampedLongMetadataValue]
+                }),
+                'query=(internal_metadata_search_array=key=' +
+                    clampedLongMetadataValue + ')'
+            ]
         }
+    ];
 
-        t.done();
-    });
-};
-
-
-exports.list_invalid_metadata_value = function (t) {
-    var expectedError = {
-        code: 'ValidationFailed',
-        message: 'Invalid Parameters',
-        errors: [ {
-            field: 'internal_metadata',
-            code: 'Invalid',
-            message: 'Invalid internal_metadata value: ""'
-        } ]
-    };
-    var listVmsQuery = '/vms?internal_metadata.foo:bar=';
-
-    client.get(listVmsQuery, function onListVms(err, req, res, body) {
-        t.ok(err,
-            'listing VMs using invalid internal_metadata key should error');
-        if (err) {
-            t.deepEqual(body, expectedError, 'Error should be equal to ' +
-                expectedError + ', got: ' + err);
-        }
-
-        t.done();
-    });
-};
-
-exports.create_test_vm_records = function (t) {
-    vmTest.createTestVMs(1, moray,
-        {concurrency: 1, log: testLogger},
-        {internal_metadata: {'some:key': 'foo'}},
-            function fakeVmsCreated(err, vmUuids) {
-                t.ifError(err, 'Creating test VM should not error');
-                t.done();
-            });
-};
-
-exports.list_valid_internal_metadata = function (t) {
-    var listVmsQuery = '/vms?internal_metadata.some:key=foo';
-
-    client.get(listVmsQuery, function onListVms(err, req, res, body) {
-        t.ifError(err,
-            'Listing VMs using valid internal_metadata filter should not ' +
-                'error');
-        t.ok(body, 'response should not be empty');
-        if (body) {
-            t.equal(body.length, 1, 'Response should include just one VM');
-        }
-
-        t.done();
-    });
-};
-
-exports.list_valid_internal_metadata_with_predicate = function (t) {
-    var listVmsQuery;
-    var predicate = JSON.stringify({
-        eq: ['internal_metadata.some:key', 'foo']
-    });
-
-    listVmsQuery = '/vms?predicate=' + predicate;
-
-    client.get(listVmsQuery, function onListVms(err, req, res, body) {
-        t.ifError(err,
-            'Listing VMs using valid internal_metadata predicate should not ' +
-                'error');
-        t.ok(body, 'response should not be empty');
-        if (body) {
-            t.equal(body.length, 1, 'Response should include just one VM');
-        }
-
-        t.done();
-    });
-};
-
-exports.create_test_vm_records_with_long_metadata_value = function (t) {
-    vmTest.createTestVMs(1, moray,
-        {concurrency: 1, log: testLogger},
-        {internal_metadata: {'some:key': longMetadataValue.toString()}},
-            function fakeVmsCreated(err, vmUuids) {
-                t.ifError(err, 'Creating test VM should not error');
-                t.done();
-            });
-};
-
-exports.list_long_internal_metadata = function (t) {
-    var listVmsQuery;
-    var queryMetadataValue = longMetadataValue.toString();
-
-    listVmsQuery = '/vms?internal_metadata.some:key=' + queryMetadataValue;
-
-    client.get(listVmsQuery, function onListVms(err, req, res, body) {
-        t.ifError(err,
-            'Listing VMs using valid internal_metadata filter should not ' +
-                'error');
-        t.ok(body, 'response should not be empty');
-        if (body) {
-            t.equal(body.length, 0, 'Response should not include any VM');
-        }
-
-        t.done();
-    });
-};
-
-exports.list_long_internal_metadata_with_shorter_value = function (t) {
-    var clampedMetadataValue = longMetadataValue.slice(0, 100).toString();
-    var listVmsQuery = '/vms?internal_metadata.some:key=' +
-        clampedMetadataValue;
-
-    client.get(listVmsQuery, function onListVms(err, req, res, body) {
-        t.ifError(err,
-            'Listing VMs using valid internal_metadata filter should not ' +
-                'error');
-        t.ok(body, 'response should not be empty');
-        if (body) {
-            t.equal(body.length, 1, 'Response should include just one VM');
-        }
-
-        t.done();
-    });
-};
-
-exports.cleanup_test_vms = function (t) {
-    vmTest.deleteTestVMs(moray, {}, function onTestVmsDeleted(delTestVmsErr) {
-        t.ifError(delTestVmsErr, 'Deleting test VMs should not error');
+    vasync.forEachPipeline({
+        func: runValidTestCase.bind(null, t),
+        inputs: testCases
+    }, function onAllValidTestCasesRan(err) {
         t.done();
     });
 };

@@ -23,6 +23,7 @@ var vasync = require('vasync');
 
 var changefeedUtils = require('../lib/changefeed');
 var common = require('./common');
+var dataMigrations = require('../lib/data-migrations');
 var morayInit = require('../lib/moray/moray-init');
 var testMoray = require('./lib/moray');
 var VmapiApp = require('../lib/vmapi');
@@ -153,6 +154,8 @@ exports.moray_init_invalid_index_removal = function (t) {
                     wfapi: mockedWfapiClient
                 },
                 changefeedPublisher: changefeedUtils.createNoopCfPublisher(),
+                dataMigrationCtrl:
+                    dataMigrations.createNoopDataMigrationsController(),
                 morayBucketsInitializer: morayBucketsInitializer,
                 moray: moray
             });

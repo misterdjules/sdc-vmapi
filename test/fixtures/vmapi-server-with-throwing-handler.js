@@ -14,6 +14,7 @@ var path = require('path');
 var vasync = require('vasync');
 
 var changefeedUtils = require('../../lib/changefeed');
+var dataMigrations = require('../../lib/data-migrations');
 var VmapiApp = require('../../lib/vmapi');
 
 var UNIQUE_ENDPOINT_PATH = '/' + libuuid.create();
@@ -43,6 +44,8 @@ vasync.pipeline({funcs: [
                 bucketsSetup: function bucketsSetup() { return true; }
             },
             changefeedPublisher: changefeedUtils.createNoopCfPublisher(),
+            dataMigrationCtrl:
+                dataMigrations.createNoopDataMigrationsController(),
             morayBucketsInitializer: {
                 status: function status() { return 'BUCKETS_REINDEX_DONE'; },
                 lastInitError: function lastInitError() { return null; }

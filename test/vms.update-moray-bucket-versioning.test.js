@@ -20,6 +20,7 @@ var VMAPI = require('sdc-clients').VMAPI;
 
 var changefeedUtils = require('../lib/changefeed');
 var common = require('./common');
+var dataMigrations = require('../lib/data-migrations');
 var morayInit = require('../lib/moray/moray-init');
 var testMoray = require('./lib/moray.js');
 var VmapiApp = require('../lib/vmapi');
@@ -321,6 +322,8 @@ function testMigrationToBucketsConfig(bucketsConfig, options, t, callback) {
                     wfapi: MOCKED_WFAPI_CLIENT
                 },
                 changefeedPublisher: changefeedUtils.createNoopCfPublisher(),
+                dataMigrationCtrl:
+                    dataMigrations.createNoopDataMigrationsController(),
                 morayBucketsInitializer: morayBucketsInitializer,
                 moray: storage
             });

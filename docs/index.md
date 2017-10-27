@@ -435,7 +435,7 @@ will result in a request error.
 | docker           | Boolean                                          | true if the VM is a docker VM, false otherwise  |
 | fields           | String (comma-separated values)                  | Specify which VM fields to return, see below    |
 | image_uuid       | UUID                                             | Image of the VM                                 |
-| internal_metadata| String                                           | VM internal metadata, see below
+| internal_metadata| String                                           | VM internal metadata, [see below](#internal-metadata)
 | owner_uuid       | UUID                                             | VM Owner                                        |
 | package_name     | String                                           | DEPRECATED: use billing_id                      |
 | package_version  | String                                           | DEPRECATED: use billing_id                      |
@@ -682,7 +682,7 @@ VMs can also be searched by tags. Tags are key/value pairs that let us identify 
 ### Internal metadata
 
 VMs can be searched by internal metadata. Internal metadata is an object with
-keys and values that are always strings. There's no nested objects/properties.
+keys and values that are always strings. There are no nested objects/properties.
 Matching needs to be exact, pattern matching is not available.
 
 For example, to search for VMs with a `docker:logdriver` internal metadata key

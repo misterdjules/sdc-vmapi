@@ -159,22 +159,24 @@ function startVmapiService() {
         function loadDataMigrations(_, next) {
             vmapiLog.info('Loading data migrations modules');
 
-            dataMigrations.loadMigrations(
-                function onMigrationsLoaded(migrationsLoadErr, migrations) {
-                    if (migrationsLoadErr) {
-                        vmapiLog.error({err: migrationsLoadErr},
-                                'Error when loading data migrations modules');
-                    } else {
-                        vmapiLog.info('Loaded data migrations modules ' +
-                            'successfully!');
-                    }
+            dataMigrations.loadMigrations({
+                log: vmapiLog.child({ component: 'migrations-loader' }, true)
+            }, function onMigrationsLoaded(migrationsLoadErr, migrations) {
+                if (migrationsLoadErr) {
+                    vmapiLog.error({err: migrationsLoadErr},
+                            'Error when loading data migrations modules');
+                } else {
+                    vmapiLog.info('Loaded data migrations modules ' +
+                        'successfully!');
+                }
 
-                    DATA_MIGRATIONS = migrations;
-                    next(migrationsLoadErr);
-                });
+                DATA_MIGRATIONS = migrations;
+                next(migrationsLoadErr);
+            });
         },
-        function initMorayApi(_, next) {
+        function initMoray(_, next) {
             assert.object(changefeedPublisher, 'changefeedPublisher');
+            assert.arrayOfObject(DATA_MIGRATIONS, 'DATA_MIGRATIONS');
 
             var morayConfig = jsprim.deepCopy(config.moray);
             morayConfig.changefeedPublisher = changefeedPublisher;
@@ -188,22 +190,6 @@ function startVmapiService() {
             morayBucketsInitializer = moraySetup.morayBucketsInitializer;
             morayClient = moraySetup.morayClient;
             moray = moraySetup.moray;
-
-            /*
-             * We don't want to wait for the Moray initialization process to
-             * be done before creating the HTTP server that will provide
-             * VMAPI's API endpoints, as:
-             *
-             * 1. some endpoints can function properly without using
-             * the Moray storage layer.
-             *
-             * 2. some endpoints are needed to provide status information,
-             * including status information about the storage layer.
-             */
-            next();
-        },
-        function startDataMigrations(_, next) {
-            assert.arrayOfObject(DATA_MIGRATIONS, 'DATA_MIGRATIONS');
 
             dataMigrationCtrl = new DataMigrationsController(DATA_MIGRATIONS, {
                 log: vmapiLog.child({
@@ -227,6 +213,17 @@ function startVmapiService() {
                     dataMigrationCtrl.start();
                 });
 
+            /*
+             * We don't want to wait for the Moray initialization process to
+             * be done before creating the HTTP server that will provide
+             * VMAPI's API endpoints, as:
+             *
+             * 1. some endpoints can function properly without using
+             * the Moray storage layer.
+             *
+             * 2. some endpoints are needed to provide status information,
+             * including status information about the storage layer.
+             */
             next();
         },
         function connectToWfApi(_, next) {
